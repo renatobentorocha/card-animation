@@ -22,6 +22,7 @@ import Animated, {
   interpolate,
   Extrapolate,
   concat,
+  multiply,
 } from 'react-native-reanimated';
 import {
   ScrollView,
@@ -106,13 +107,23 @@ export default function App() {
                 {
                   nativeEvent: ({ state, oldState }) =>
                     block([
-                      set(
-                        translateY[index],
-                        runProgress(clock[index], 0, -200)
+                      cond(
+                        clockRunning(clock[index]),
+                        set(
+                          translateY[index],
+                          runProgress(clock[index], 0, -200)
+                        )
                       ),
-                      set(
-                        translateX[index],
-                        runProgress(clock[index], 0, -width / 2)
+                      cond(
+                        clockRunning(clock[index]),
+                        set(
+                          translateX[index],
+                          runProgress(
+                            clock[index],
+                            0,
+                            -index * (CARD_DIMENSIONS.width / 2)
+                          )
+                        )
                       ),
                       cond(eq(state, State.ACTIVE), set(longPressed[index], 1)),
                       cond(eq(oldState, State.ACTIVE), [
@@ -130,8 +141,8 @@ export default function App() {
                   }
                   style={{
                     transform: [
-                      { translateY: translateY[index] },
                       { translateX: translateX[index] },
+                      { translateY: translateY[index] },
                       { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
                       { rotate: concat(rotate, 'deg') },
                       { scale: cond(longPressed[index], 1.2, 1.4) },
