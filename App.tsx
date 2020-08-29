@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useRef } from 'react';
-import { StyleSheet, View, Dimensions } from 'react-native';
+import { StyleSheet, View, Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   event,
   abs,
@@ -12,11 +12,19 @@ import Animated, {
   onChange,
   cond,
   eq,
+  Clock,
+  Easing,
+  not,
+  clockRunning,
+  startClock,
+  timing,
+  stopClock,
+  interpolate,
+  Extrapolate,
+  concat,
 } from 'react-native-reanimated';
 import {
   ScrollView,
-  TapGestureHandlerStateChangeEvent,
-  PanGestureHandler,
   LongPressGestureHandler,
   LongPressGestureHandlerGestureEvent,
   LongPressGestureHandlerStateChangeEvent,
@@ -28,30 +36,51 @@ const { width } = Dimensions.get('screen');
 
 const TOTAL_OF_CARDS = [1, 2, 3, 4];
 
-const CARD_CENTER = {
-  x: CARD_DIMENSIONS.width / 2,
-  y: CARD_DIMENSIONS.height / 2,
+const runProgress = (clock: Clock, intialPosition: number, toValue: number) => {
+  const state = {
+    finished: new Animated.Value(0),
+    position: new Animated.Value(intialPosition),
+    frameTime: new Animated.Value(0),
+    time: new Animated.Value(0),
+  };
+
+  const config = {
+    toValue: new Animated.Value(toValue),
+    duration: 2000,
+    easing: Easing.inOut(Easing.linear),
+  };
+
+  return block([
+    cond(
+      clockRunning(clock),
+      timing(clock, state, config),
+      set(state.position, 0)
+    ),
+
+    cond(eq(state.finished, 1), [
+      stopClock(clock),
+      set(state.finished, 0),
+      set(state.frameTime, 0),
+      set(state.time, 0),
+    ]),
+    state.position,
+  ]);
 };
 
 export default function App() {
-  const translateYs = useRef(
-    TOTAL_OF_CARDS.map(() => new Animated.Value<number>())
+  const longPressed = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
 
-  const gestureState = useRef(new Animated.Value<State>(State.UNDETERMINED))
-    .current;
+  const translateY = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
 
-  const absY = useRef(new Animated.Value<number>(0)).current;
+  const translateX = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
 
-  const origin = useRef({
-    x: new Animated.Value<number>(0),
-    y: new Animated.Value<number>(0),
-  }).current;
-
-  const scrollRef = useRef();
-  const scrollPan = useRef();
-
-  useCode(() => onChange(absY, debug('absY', absY)), []);
+  const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
 
   return (
     <View style={styles.container}>
@@ -61,47 +90,58 @@ export default function App() {
         pagingEnabled
         contentContainerStyle={styles.scroll}
       >
-        {[1, 2, 3, 4].map((_, index) => (
-          <LongPressGestureHandler
-            key={index.toString()}
-            onGestureEvent={event<LongPressGestureHandlerGestureEvent>([
-              {
-                nativeEvent: ({ y, absoluteX, absoluteY, state }) =>
-                  block([set(translateYs[index], y), set(gestureState, state)]),
-              },
-            ])}
-            onHandlerStateChange={event<
-              LongPressGestureHandlerStateChangeEvent
-            >([
-              {
-                nativeEvent: ({ y, absoluteX, absoluteY, state, handlerTag }) =>
-                  cond(
-                    eq(state, State.ACTIVE),
-                    set(translateYs[index], 1),
-                    cond(eq(translateYs[index], 1), set(translateYs[index], 0))
-                  ),
-                // block([
-                //     set(translateYs[index], y),
-                //     set(gestureState, state),
-                //     set(absY, absoluteY),
-                //     debug('translateYs[index]', translateYs[index]),
-                //   ]),
-              },
-            ])}
-          >
-            <Animated.View style={{}}>
-              <Card
-                style={{
-                  transform: [
-                    { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                    { rotate: '90deg' },
-                    { scale: cond(translateYs[index], 1.6, 1.4) },
-                  ],
-                }}
-              />
-            </Animated.View>
-          </LongPressGestureHandler>
-        ))}
+        {[1, 2, 3, 4].map((_, index) => {
+          const rotate = interpolate(translateY[index], {
+            inputRange: [-200, 0],
+            outputRange: [0, -90],
+            extrapolate: Extrapolate.CLAMP,
+          });
+
+          return (
+            <LongPressGestureHandler
+              key={index.toString()}
+              onHandlerStateChange={event<
+                LongPressGestureHandlerStateChangeEvent
+              >([
+                {
+                  nativeEvent: ({ state, oldState }) =>
+                    block([
+                      set(
+                        translateY[index],
+                        runProgress(clock[index], 0, -200)
+                      ),
+                      set(
+                        translateX[index],
+                        runProgress(clock[index], 0, -width / 2)
+                      ),
+                      cond(eq(state, State.ACTIVE), set(longPressed[index], 1)),
+                      cond(eq(oldState, State.ACTIVE), [
+                        startClock(clock[index]),
+                        // set(longPressed[index], 0),
+                      ]),
+                    ]),
+                },
+              ])}
+            >
+              <Animated.View style={{}}>
+                <Card
+                  onLayout={(event: LayoutChangeEvent) =>
+                    console.log(event.nativeEvent.layout)
+                  }
+                  style={{
+                    transform: [
+                      { translateY: translateY[index] },
+                      { translateX: translateX[index] },
+                      { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
+                      { rotate: concat(rotate, 'deg') },
+                      { scale: cond(longPressed[index], 1.2, 1.4) },
+                    ],
+                  }}
+                />
+              </Animated.View>
+            </LongPressGestureHandler>
+          );
+        })}
       </ScrollView>
       <StatusBar style="auto" />
     </View>

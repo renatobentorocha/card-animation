@@ -13,7 +13,7 @@ export const CARD_DIMENSIONS = {
 
 export type CardProps = ViewProps;
 
-const Card: React.FC<CardProps> = ({ style, ...rest }) => {
+const Card: React.FC<CardProps> = ({ style, ...rest }: CardProps) => {
   return (
     <Animated.View style={[styles.card, style]} {...rest}>
       <LinearGradient
