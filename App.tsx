@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -45,10 +45,10 @@ const CENTER_X = width / 2;
 
 const TOTAL_OF_CARDS = [1, 2, 3, 4];
 
-const runProgress = (clock: Clock, intialPosition: number, toValue: number) => {
+const runProgress = (clock: Clock, from: number, toValue: number) => {
   const state = {
     finished: new Animated.Value(0),
-    position: new Animated.Value(intialPosition),
+    position: new Animated.Value(from),
     frameTime: new Animated.Value(0),
     time: new Animated.Value(0),
   };
@@ -62,8 +62,8 @@ const runProgress = (clock: Clock, intialPosition: number, toValue: number) => {
   return block([
     cond(
       clockRunning(clock),
-      timing(clock, state, config),
-      set(state.position, 0)
+      timing(clock, state, config)
+      // set(state.position, 0)
     ),
 
     cond(eq(state.finished, 1), [
@@ -72,20 +72,20 @@ const runProgress = (clock: Clock, intialPosition: number, toValue: number) => {
       set(state.frameTime, 0),
       set(state.time, 0),
     ]),
+
+    debug('state.position', state.position),
+    debug('config.toVAlue', config.toValue),
     state.position,
   ]);
 };
 
-const position = (
-  value: Animated.Adaptable<number>,
-  scrollX: Animated.Value<number>
-) =>
-  block([
-    debug('sub(value)', sub(value, 0)),
-    debug('sub(scrollX)', sub(scrollX, 0)),
-    debug('sub(value, scrollX)', sub(value, scrollX)),
-    0,
-  ]);
+const isClockRunning = (
+  clocks: Animated.Clock[],
+  index: Animated.Adaptable<number>
+) => clockRunning(clocks[Number(index.toString())]);
+
+const numberFromAnimatedValue = (index: Animated.Adaptable<number>) =>
+  Number(index.toString());
 
 export default function App() {
   const longPressed = useRef(
@@ -102,9 +102,29 @@ export default function App() {
 
   const scrollX = useRef(new Animated.Value<number>(0)).current;
 
-  const initialPositionX: number[] = TOTAL_OF_CARDS.map(() => 0);
+  const [initialPositionX, setInitialPositionX] = useState<
+    {
+      from: number;
+      to: number;
+    }[]
+  >(TOTAL_OF_CARDS.map(() => ({ from: 0, to: 0 })));
+
+  const positionX = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
+
+  const cardIndex = useRef(new Animated.Value<number>(0)).current;
+
+  useEffect(() => console.log(initialPositionX), [initialPositionX]);
+
+  // TOTAL_OF_CARDS.map(() => ({ from: 0, to: 0 }))
+  // let initialPositionX: {
+  //   from: number;
+  //   to: number;
+  // }[] = TOTAL_OF_CARDS.map(() => ({ from: 0, to: 0 }));
 
   const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
+
   const translateXclock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock()))
     .current;
 
@@ -112,7 +132,24 @@ export default function App() {
     { nativeEvent: { contentOffset: { x: scrollX } } },
   ]);
 
-  useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
+  // useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
+
+  useCode(
+    () =>
+      // cond(isClockRunning(translateXclock, cardIndex), [
+      //   debug('numberFromAnimatedValue(cardIndex)', cardIndex),
+      //   set(
+      //     translateX[numberFromAnimatedValue(cardIndex)],
+      //     runProgress(
+      //       translateXclock[numberFromAnimatedValue(cardIndex)],
+      //       0,
+      //       initialPositionX[numberFromAnimatedValue(cardIndex)].to
+      //     )
+      //   ),
+      // ]),
+      set(positionX, initialPositionX),
+    [initialPositionX]
+  );
 
   return (
     <View style={styles.container}>
@@ -131,14 +168,33 @@ export default function App() {
             extrapolate: Extrapolate.CLAMP,
           });
 
-          position(initialPositionX[index], scrollX);
-
           return (
             <Animated.View
               key={index.toString()}
-              onLayout={(event: LayoutChangeEvent) =>
-                (initialPositionX[index] = event.nativeEvent.layout.x)
-              }
+              onLayout={(event: LayoutChangeEvent) => {
+                const from = event.nativeEvent.layout.x;
+
+                // console.log({
+                //   from,
+                //   to:
+                //     -1 *
+                //     (from -
+                //       width * Math.floor(event.nativeEvent.layout.x / width)),
+                // });
+
+                const obj = {
+                  from,
+                  to:
+                    -1 *
+                    (from -
+                      width * Math.floor(event.nativeEvent.layout.x / width)),
+                };
+
+                const arr = [...initialPositionX, obj];
+                arr.shift();
+
+                setInitialPositionX(arr.sort((a, b) => a.from - b.from));
+              }}
             >
               <LongPressGestureHandler
                 onHandlerStateChange={event<
@@ -147,26 +203,31 @@ export default function App() {
                   {
                     nativeEvent: ({ state, oldState }) =>
                       block([
-                        cond(
-                          clockRunning(clock[index]),
-                          set(
-                            translateY[index],
-                            runProgress(clock[index], 0, -200)
-                          )
-                        ),
-                        cond(
-                          clockRunning(translateXclock[index]),
-                          set(
-                            translateX[index],
-                            runProgress(translateXclock[index], 0, -CENTER_X)
-                          )
-                        ),
+                        // cond(
+                        //   clockRunning(clock[index]),
+                        //   set(
+                        //     translateY[index],
+                        //     runProgress(clock[index], 0, -200)
+                        //   )
+                        // ),
+                        cond(clockRunning(translateXclock[index]), [
+                          // set(
+                          //   translateX[index],
+                          //   runProgress(
+                          //     translateXclock[index],
+                          //     0,
+                          //     initialPositionX[index].to
+                          //   )
+                          // ),
+                          // debug('translateX[index]', translateX[index]),
+                        ]),
                         cond(
                           eq(state, State.ACTIVE),
                           set(longPressed[index], 1)
                         ),
                         cond(eq(oldState, State.ACTIVE), [
-                          startClock(clock[index]),
+                          // startClock(clock[index]),
+                          set(cardIndex, index),
                           startClock(translateXclock[index]),
                           // set(longPressed[index], 0),
                         ]),
@@ -180,10 +241,10 @@ export default function App() {
                       {
                         transform: [
                           { translateX: translateX[index] },
-                          { translateY: translateY[index] },
-                          { translateX: multiply(translateX[index], -1) },
+                          // { translateY: translateY[index] },
+                          // { translateX: multiply(translateX[index], -1) },
                           { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                          { rotate: concat(rotate, 'deg') },
+                          { rotate: concat(0, 'deg') },
                           { scale: cond(longPressed[index], 1.2, 1.4) },
                         ],
                       },
