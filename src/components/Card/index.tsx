@@ -32,8 +32,8 @@ const Card: React.FC<CardProps> = ({ style, ...rest }: CardProps) => {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_DIMENSIONS.width,
-    height: CARD_DIMENSIONS.height,
+    width: CARD_DIMENSIONS.height,
+    height: CARD_DIMENSIONS.width,
     borderRadius: 10,
   },
 });
