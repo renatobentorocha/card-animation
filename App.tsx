@@ -31,6 +31,9 @@ import Animated, {
   concat,
   multiply,
   sub,
+  add,
+  pow,
+  sqrt,
 } from 'react-native-reanimated';
 import {
   LongPressGestureHandler,
@@ -43,9 +46,13 @@ const { width } = Dimensions.get('screen');
 
 const CENTER_X = width / 2;
 
-const TOTAL_OF_CARDS = [1, 2, 3, 4];
+const TOTAL_OF_CARDS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-const runProgress = (clock: Clock, from: number, toValue: number) => {
+const runProgress = (
+  clock: Clock,
+  from: number,
+  toValue: Animated.Node<number>
+) => {
   const state = {
     finished: new Animated.Value(0),
     position: new Animated.Value(from),
@@ -54,7 +61,7 @@ const runProgress = (clock: Clock, from: number, toValue: number) => {
   };
 
   const config = {
-    toValue: new Animated.Value(toValue),
+    toValue: toValue,
     duration: 2000,
     easing: Easing.inOut(Easing.linear),
   };
@@ -67,14 +74,16 @@ const runProgress = (clock: Clock, from: number, toValue: number) => {
     ),
 
     cond(eq(state.finished, 1), [
-      stopClock(clock),
+      debug('state.position', state.position),
+      debug('config.toVAlue', config.toValue),
+
       set(state.finished, 0),
       set(state.frameTime, 0),
       set(state.time, 0),
     ]),
 
-    debug('state.position', state.position),
-    debug('config.toVAlue', config.toValue),
+    // debug('state.position', state.position),
+    // debug('config.toVAlue', config.toValue),
     state.position,
   ]);
 };
@@ -124,7 +133,7 @@ export default function App() {
     { nativeEvent: { contentOffset: { x: scrollX } } },
   ]);
 
-  // useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
+  useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
 
   return (
     <View style={styles.container}>
@@ -136,7 +145,7 @@ export default function App() {
         scrollEventThrottle={1}
         onScroll={onScroll}
       >
-        {[1, 2, 3, 4].map((_, index) => {
+        {TOTAL_OF_CARDS.map((_, index) => {
           const rotate = interpolate(translateY[index], {
             inputRange: [-200, 0],
             outputRange: [0, -90],
@@ -185,7 +194,25 @@ export default function App() {
                               runProgress(
                                 translateXclock[index],
                                 0,
-                                initialPositionX[index].to
+
+                                cond(
+                                  not(eq(scrollX, 0)),
+                                  multiply(
+                                    sub(initialPositionX[index].from, scrollX),
+                                    -1
+                                  ),
+                                  add(initialPositionX[index].to, 0)
+                                )
+
+                                // multiply(
+                                //   sqrt(
+                                //     pow(
+                                //       add(initialPositionX[index].to, scrollX),
+                                //       2
+                                //     )
+                                //   ),
+                                //   -1
+                                // )
                               )
                             ),
                           ]),
