@@ -46,16 +46,19 @@ const { width } = Dimensions.get('screen');
 
 const CENTER_X = width / 2;
 
+const cardOffetAdjustment = CENTER_X - CARD_DIMENSIONS.height / 2;
+
 const TOTAL_OF_CARDS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const runProgress = (
   clock: Clock,
-  from: number,
-  toValue: Animated.Node<number>
+  from: Animated.Value<number>,
+  toValue: Animated.Value<number>
+  // invert: Animated.Value<number>
 ) => {
   const state = {
     finished: new Animated.Value(0),
-    position: new Animated.Value(from),
+    position: from,
     frameTime: new Animated.Value(0),
     time: new Animated.Value(0),
   };
@@ -74,8 +77,8 @@ const runProgress = (
     ),
 
     cond(eq(state.finished, 1), [
-      debug('state.position', state.position),
-      debug('config.toVAlue', config.toValue),
+      // debug('state.position', state.position),
+      // debug('config.toVAlue', config.toValue),
 
       set(state.finished, 0),
       set(state.frameTime, 0),
@@ -97,6 +100,17 @@ export default function App() {
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
 
+  const fromTranslateY = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
+
+  const fromTranslateX = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
+
+  const invert = useRef(TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0)))
+    .current;
+
   const translateX = useRef(
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
@@ -117,12 +131,6 @@ export default function App() {
   const cardIndex = useRef(new Animated.Value<number>(-1)).current;
 
   useEffect(() => console.log(initialPositionX), [initialPositionX]);
-
-  // TOTAL_OF_CARDS.map(() => ({ from: 0, to: 0 }))
-  // let initialPositionX: {
-  //   from: number;
-  //   to: number;
-  // }[] = TOTAL_OF_CARDS.map(() => ({ from: 0, to: 0 }));
 
   const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
 
@@ -148,7 +156,7 @@ export default function App() {
         {TOTAL_OF_CARDS.map((_, index) => {
           const rotate = interpolate(translateY[index], {
             inputRange: [-200, 0],
-            outputRange: [0, -90],
+            outputRange: [-90, 0],
             extrapolate: Extrapolate.CLAMP,
           });
 
@@ -181,38 +189,42 @@ export default function App() {
                     {
                       nativeEvent: ({ state, oldState }) =>
                         block([
-                          // cond(
-                          //   clockRunning(clock[index]),
-                          //   set(
-                          //     translateY[index],
-                          //     runProgress(clock[index], 0, -200)
-                          //   )
-                          // ),
+                          cond(clockRunning(clock[index]), [
+                            set(fromTranslateY[index], -200),
+                            set(
+                              translateY[index],
+                              runProgress(
+                                clock[index],
+                                new Animated.Value(0),
+                                fromTranslateY[index]
+                              )
+                            ),
+                          ]),
                           cond(clockRunning(translateXclock[index]), [
                             set(
-                              translateX[index],
-                              runProgress(
-                                translateXclock[index],
-                                0,
-
-                                cond(
-                                  not(eq(scrollX, 0)),
+                              fromTranslateX[index],
+                              cond(
+                                not(eq(scrollX, 0)),
+                                add(
                                   multiply(
                                     sub(initialPositionX[index].from, scrollX),
                                     -1
                                   ),
-                                  add(initialPositionX[index].to, 0)
+                                  cardOffetAdjustment
+                                ),
+                                add(
+                                  initialPositionX[index].to +
+                                    cardOffetAdjustment,
+                                  0
                                 )
-
-                                // multiply(
-                                //   sqrt(
-                                //     pow(
-                                //       add(initialPositionX[index].to, scrollX),
-                                //       2
-                                //     )
-                                //   ),
-                                //   -1
-                                // )
+                              )
+                            ),
+                            set(
+                              translateX[index],
+                              runProgress(
+                                translateXclock[index],
+                                new Animated.Value(0),
+                                fromTranslateX[index]
                               )
                             ),
                           ]),
@@ -221,10 +233,11 @@ export default function App() {
                             set(longPressed[index], 1)
                           ),
                           cond(eq(oldState, State.ACTIVE), [
-                            // startClock(clock[index]),
+                            startClock(clock[index]),
                             set(cardIndex, index),
                             startClock(translateXclock[index]),
-                            // set(longPressed[index], 0),
+                            set(longPressed[index], 0),
+                            set(invert[index], not(invert[index])),
                           ]),
                         ]),
                     },
@@ -235,12 +248,11 @@ export default function App() {
                       style={[
                         {
                           transform: [
-                            { translateX: translateX[index] },
-                            // { translateY: translateY[index] },
-                            // { translateX: multiply(translateX[index], -1) },
+                            // { translateX: translateX[index] },
+                            { translateY: translateY[index] },
                             { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                            // { rotate: concat(90, 'deg') },
-                            // { scale: cond(longPressed[index], 1.2, 1.4) },
+                            { rotate: concat(0, 'deg') },
+                            { scale: cond(longPressed[index], 0.8, 1) },
                           ],
                         },
                       ]}
