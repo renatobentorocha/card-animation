@@ -34,6 +34,7 @@ import Animated, {
   add,
   pow,
   sqrt,
+  and,
 } from 'react-native-reanimated';
 import {
   LongPressGestureHandler,
@@ -53,41 +54,52 @@ const TOTAL_OF_CARDS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const runProgress = (
   clock: Clock,
   from: Animated.Value<number>,
-  toValue: Animated.Value<number>
-  // invert: Animated.Value<number>
+  toValue: Animated.Value<number>,
+  invert: Animated.Value<number>[],
+  index: number
 ) => {
   const state = {
     finished: new Animated.Value(0),
-    position: from,
+    position: from as Animated.Value<number>,
     frameTime: new Animated.Value(0),
     time: new Animated.Value(0),
   };
 
   const config = {
-    toValue: toValue,
+    toValue,
     duration: 2000,
     easing: Easing.inOut(Easing.linear),
   };
 
   return block([
-    cond(
-      clockRunning(clock),
-      timing(clock, state, config)
-      // set(state.position, 0)
-    ),
+    cond(clockRunning(clock), timing(clock, state, config)),
 
     cond(eq(state.finished, 1), [
       // debug('state.position', state.position),
       // debug('config.toVAlue', config.toValue),
 
+      stopClock(clock),
       set(state.finished, 0),
       set(state.frameTime, 0),
       set(state.time, 0),
-    ]),
+      // set(state.position, 0),
 
+      // debug('state.position', state.position),
+      // debug('cond(eq(invert, 1), 0, 1)', cond(eq(invert[index], 1), 0, 1)),
+
+      set(invert[index], cond(eq(invert[index], 1), 0, 1)),
+
+      // cond(
+      //   eq(invert[index], 1),
+      //   [set(config.toValue, from), set(state.position, toValue)],
+      //   [set(config.toValue, toValue), set(state.position, from)]
+      // ),
+
+      // cond(eq(invert, 1), set(state.position, from)),
+    ]),
+    state.position,
     // debug('state.position', state.position),
     // debug('config.toVAlue', config.toValue),
-    state.position,
   ]);
 };
 
@@ -96,12 +108,20 @@ export default function App() {
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
 
+  const gestures = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<State>(State.UNDETERMINED))
+  ).current;
+
   const translateY = useRef(
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
 
   const fromTranslateY = useRef(
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+  ).current;
+
+  const toTranslateY = useRef(
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(-200))
   ).current;
 
   const fromTranslateX = useRef(
@@ -128,9 +148,7 @@ export default function App() {
     TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
   ).current;
 
-  const cardIndex = useRef(new Animated.Value<number>(-1)).current;
-
-  useEffect(() => console.log(initialPositionX), [initialPositionX]);
+  // useEffect(() => console.log(initialPositionX), [initialPositionX]);
 
   const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
 
@@ -141,7 +159,7 @@ export default function App() {
     { nativeEvent: { contentOffset: { x: scrollX } } },
   ]);
 
-  useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
+  // useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
 
   return (
     <View style={styles.container}>
@@ -189,55 +207,76 @@ export default function App() {
                     {
                       nativeEvent: ({ state, oldState }) =>
                         block([
+                          onChange(invert[index], [
+                            set(
+                              fromTranslateY[index],
+                              cond(eq(invert[index], 1), -200, 0)
+                            ),
+                            set(
+                              toTranslateY[index],
+                              cond(eq(invert[index], 1), 0, -200)
+                            ),
+                            debug(
+                              'fromTranslateY[index]',
+                              fromTranslateY[index]
+                            ),
+                            debug('toTranslateY[index]', toTranslateY[index]),
+                          ]),
                           cond(clockRunning(clock[index]), [
-                            set(fromTranslateY[index], -200),
                             set(
                               translateY[index],
+
                               runProgress(
                                 clock[index],
-                                new Animated.Value(0),
-                                fromTranslateY[index]
+                                fromTranslateY[index],
+                                toTranslateY[index],
+                                invert,
+                                index
                               )
                             ),
                           ]),
-                          cond(clockRunning(translateXclock[index]), [
-                            set(
-                              fromTranslateX[index],
-                              cond(
-                                not(eq(scrollX, 0)),
-                                add(
-                                  multiply(
-                                    sub(initialPositionX[index].from, scrollX),
-                                    -1
-                                  ),
-                                  cardOffetAdjustment
-                                ),
-                                add(
-                                  initialPositionX[index].to +
-                                    cardOffetAdjustment,
-                                  0
-                                )
-                              )
-                            ),
-                            set(
-                              translateX[index],
-                              runProgress(
-                                translateXclock[index],
-                                new Animated.Value(0),
-                                fromTranslateX[index]
-                              )
-                            ),
-                          ]),
+                          // cond(clockRunning(translateXclock[index]), [
+                          //   set(
+                          //     fromTranslateX[index],
+                          //     cond(
+                          //       not(eq(scrollX, 0)),
+                          //       add(
+                          //         multiply(
+                          //           sub(initialPositionX[index].from, scrollX),
+                          //           -1
+                          //         ),
+                          //         cardOffetAdjustment
+                          //       ),
+                          //       add(
+                          //         initialPositionX[index].to +
+                          //           cardOffetAdjustment,
+                          //         0
+                          //       )
+                          //     )
+                          //   ),
+                          //   set(
+                          //     translateX[index],
+                          //     runProgress(
+                          //       translateXclock[index],
+                          //       new Animated.Value(0),
+                          //       fromTranslateX[index],
+                          //       invert,
+                          //       index
+                          //     )
+                          //   ),
+                          // ]),
                           cond(
                             eq(state, State.ACTIVE),
                             set(longPressed[index], 1)
                           ),
-                          cond(eq(oldState, State.ACTIVE), [
-                            startClock(clock[index]),
-                            set(cardIndex, index),
-                            startClock(translateXclock[index]),
-                            set(longPressed[index], 0),
-                            set(invert[index], not(invert[index])),
+                          set(gestures[index], state),
+                          onChange(gestures[index], [
+                            cond(eq(oldState, State.ACTIVE), [
+                              startClock(clock[index]),
+                              // startClock(translateXclock[index]),
+                              set(longPressed[index], 0),
+                              // set(invert[index], not(invert[index])),
+                            ]),
                           ]),
                         ]),
                     },
