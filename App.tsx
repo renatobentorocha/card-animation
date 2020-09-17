@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
+
 import {
   StyleSheet,
   View,
@@ -8,14 +9,12 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
+
 import Animated, {
   event,
-  abs,
   block,
   debug,
   set,
-  min,
-  useCode,
   onChange,
   cond,
   eq,
@@ -32,15 +31,14 @@ import Animated, {
   multiply,
   sub,
   add,
-  pow,
-  sqrt,
-  and,
 } from 'react-native-reanimated';
+
 import {
   LongPressGestureHandler,
   LongPressGestureHandlerStateChangeEvent,
   State,
 } from 'react-native-gesture-handler';
+
 import Card, { CARD_DIMENSIONS } from './src/components/Card';
 
 const { width } = Dimensions.get('screen');
@@ -56,7 +54,8 @@ const runProgress = (
   from: Animated.Value<number>,
   toValue: Animated.Value<number>,
   invert: Animated.Value<number>[],
-  index: number
+  index: number,
+  canInvert: number
 ) => {
   const state = {
     finished: new Animated.Value(0),
@@ -75,31 +74,17 @@ const runProgress = (
     cond(clockRunning(clock), timing(clock, state, config)),
 
     cond(eq(state.finished, 1), [
-      // debug('state.position', state.position),
-      // debug('config.toVAlue', config.toValue),
-
       stopClock(clock),
       set(state.finished, 0),
       set(state.frameTime, 0),
       set(state.time, 0),
-      // set(state.position, 0),
 
-      // debug('state.position', state.position),
-      // debug('cond(eq(invert, 1), 0, 1)', cond(eq(invert[index], 1), 0, 1)),
-
-      set(invert[index], cond(eq(invert[index], 1), 0, 1)),
-
-      // cond(
-      //   eq(invert[index], 1),
-      //   [set(config.toValue, from), set(state.position, toValue)],
-      //   [set(config.toValue, toValue), set(state.position, from)]
-      // ),
-
-      // cond(eq(invert, 1), set(state.position, from)),
+      cond(
+        eq(canInvert, 1),
+        set(invert[index], cond(eq(invert[index], 1), 0, 1))
+      ),
     ]),
     state.position,
-    // debug('state.position', state.position),
-    // debug('config.toVAlue', config.toValue),
   ]);
 };
 
@@ -140,7 +125,7 @@ export default function App() {
     .current;
 
   const invertX = useRef(
-    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(0))
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(1))
   ).current;
 
   const translateX = useRef(
@@ -156,8 +141,6 @@ export default function App() {
     }[]
   >([]);
 
-  // useEffect(() => console.log(initialPositionX), [initialPositionX]);
-
   const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
 
   const translateXclock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock()))
@@ -166,8 +149,6 @@ export default function App() {
   const onScroll = event<NativeSyntheticEvent<NativeScrollEvent>>([
     { nativeEvent: { contentOffset: { x: scrollX } } },
   ]);
-
-  // useCode(() => onChange(scrollX, debug('scrollX', scrollX)), []);
 
   return (
     <View style={styles.container}>
@@ -233,7 +214,8 @@ export default function App() {
                                 fromTranslateY[index],
                                 toTranslateY[index],
                                 invert,
-                                index
+                                index,
+                                1
                               )
                             ),
                           ]),
@@ -273,9 +255,11 @@ export default function App() {
                                 fromTranslateX[index],
                                 toTranslateX[index],
                                 invertX,
-                                index
+                                index,
+                                0
                               )
                             ),
+                            debug('translateX[index]', translateX[index]),
                           ]),
                           cond(
                             eq(state, State.ACTIVE),
@@ -284,6 +268,7 @@ export default function App() {
                           set(gestures[index], state),
                           onChange(gestures[index], [
                             cond(eq(oldState, State.ACTIVE), [
+                              set(invertX[index], not(invertX[index])),
                               startClock(clock[index]),
                               startClock(translateXclock[index]),
                               set(longPressed[index], 0),
@@ -315,8 +300,6 @@ export default function App() {
                     {
                       transform: [
                         { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                        // { rotate: '90deg' },
-                        // { scale: 1.4 },
                       ],
                     },
                   ]}
