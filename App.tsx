@@ -13,7 +13,6 @@ import {
 import Animated, {
   event,
   block,
-  debug,
   set,
   onChange,
   cond,
@@ -41,13 +40,23 @@ import {
 
 import Card, { CARD_DIMENSIONS } from './src/components/Card';
 
-const { width } = Dimensions.get('screen');
+import { scale } from './src/utils';
+
+const { width, height } = Dimensions.get('screen');
 
 const CENTER_X = width / 2;
 
 const cardOffetAdjustment = CENTER_X - CARD_DIMENSIONS.height / 2;
 
 const TOTAL_OF_CARDS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+const UPPER_LIMIT = scale({
+  destination_size: height,
+  origin_size: 667,
+  size: 400,
+});
+
+const ROTATE_DEG = 90;
 
 const runProgress = (
   clock: Clock,
@@ -106,7 +115,7 @@ export default function App() {
   ).current;
 
   const toTranslateY = useRef(
-    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(-400))
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(-UPPER_LIMIT))
   ).current;
 
   const positionX = useRef(
@@ -157,7 +166,6 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Animated.ScrollView
-        style={{ borderColor: 'red', borderWidth: 1 }}
         horizontal
         showsHorizontalScrollIndicator={false}
         pagingEnabled
@@ -167,8 +175,8 @@ export default function App() {
       >
         {TOTAL_OF_CARDS.map((_, index) => {
           const rotate = interpolate(translateY[index], {
-            inputRange: [-400, 0],
-            outputRange: [-90, 0],
+            inputRange: [-UPPER_LIMIT, 0],
+            outputRange: [-ROTATE_DEG, 0],
             extrapolate: Extrapolate.CLAMP,
           });
 
@@ -204,11 +212,11 @@ export default function App() {
                           onChange(invert[index], [
                             set(
                               fromTranslateY[index],
-                              cond(eq(invert[index], 1), -400, 0)
+                              cond(eq(invert[index], 1), -UPPER_LIMIT, 0)
                             ),
                             set(
                               toTranslateY[index],
-                              cond(eq(invert[index], 1), 0, -400)
+                              cond(eq(invert[index], 1), 0, -UPPER_LIMIT)
                             ),
                           ]),
                           cond(clockRunning(clock[index]), [
@@ -227,7 +235,7 @@ export default function App() {
                             set(
                               opacity,
                               interpolate(translateY[index], {
-                                inputRange: [-400, 0],
+                                inputRange: [-UPPER_LIMIT, 0],
                                 outputRange: [0, 1],
                                 extrapolate: Extrapolate.CLAMP,
                               })
@@ -273,7 +281,6 @@ export default function App() {
                                 0
                               )
                             ),
-                            debug('translateX[index]', translateX[index]),
                           ]),
                           cond(
                             eq(state, State.ACTIVE),
@@ -298,29 +305,19 @@ export default function App() {
                     }}
                   >
                     <Card
-                      style={[
-                        {
-                          transform: [
-                            { translateX: translateX[index] },
-                            { translateY: translateY[index] },
-                            // { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                            { rotate: concat(rotate, 'deg') },
-                            { scale: cond(longPressed[index], 0.8, 1) },
-                          ],
-                        },
-                      ]}
+                      translateX={translateX[index]}
+                      translateY={translateY[index]}
+                      rotate={concat(rotate, 'deg')}
+                      scale={cond(longPressed[index], 0.8, 1)}
                     />
                   </Animated.View>
                 </LongPressGestureHandler>
               ) : (
                 <Card
-                  style={[
-                    {
-                      transform: [
-                        { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
-                      ],
-                    },
-                  ]}
+                  translateX={translateX[index]}
+                  translateY={translateY[index]}
+                  rotate={concat(rotate, 'deg')}
+                  scale={cond(longPressed[index], 0.8, 1)}
                 />
               )}
             </Animated.View>
@@ -342,7 +339,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     alignItems: 'flex-end',
-    // paddingBottom: 20,
   },
   card: {},
 });

@@ -11,11 +11,32 @@ export const CARD_DIMENSIONS = {
   height: scale({ destination_size: height, origin_size: 667, size: 157 }),
 };
 
-export type CardProps = ViewProps;
+export type CardProps = ViewProps & {
+  translateX: Animated.Value<number>;
+  translateY: Animated.Value<number>;
+  rotate: Animated.Node<string>;
+  scale: Animated.Node<number>;
+};
 
-const Card: React.FC<CardProps> = ({ style, ...rest }: CardProps) => {
+const Card: React.FC<CardProps> = ({
+  style,
+  translateX,
+  translateY,
+  rotate,
+  scale,
+  ...rest
+}: CardProps) => {
   return (
-    <Animated.View style={[styles.card, style]} {...rest}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          transform: [{ translateX }, { translateY }, { rotate }, { scale }],
+        },
+        style,
+      ]}
+      {...rest}
+    >
       <LinearGradient
         style={{ flex: 1, borderRadius: 10 }}
         colors={[
