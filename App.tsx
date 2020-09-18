@@ -106,7 +106,7 @@ export default function App() {
   ).current;
 
   const toTranslateY = useRef(
-    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(-200))
+    TOTAL_OF_CARDS.map(() => new Animated.Value<number>(-400))
   ).current;
 
   const positionX = useRef(
@@ -143,6 +143,10 @@ export default function App() {
 
   const clock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock())).current;
 
+  const opacity = useRef(new Animated.Value<number>(1)).current;
+
+  const animatedIndex = useRef(new Animated.Value<number>(-1)).current;
+
   const translateXclock = useRef(TOTAL_OF_CARDS.map(() => new Animated.Clock()))
     .current;
 
@@ -153,6 +157,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Animated.ScrollView
+        style={{ borderColor: 'red', borderWidth: 1 }}
         horizontal
         showsHorizontalScrollIndicator={false}
         pagingEnabled
@@ -162,7 +167,7 @@ export default function App() {
       >
         {TOTAL_OF_CARDS.map((_, index) => {
           const rotate = interpolate(translateY[index], {
-            inputRange: [-200, 0],
+            inputRange: [-400, 0],
             outputRange: [-90, 0],
             extrapolate: Extrapolate.CLAMP,
           });
@@ -199,14 +204,15 @@ export default function App() {
                           onChange(invert[index], [
                             set(
                               fromTranslateY[index],
-                              cond(eq(invert[index], 1), -200, 0)
+                              cond(eq(invert[index], 1), -400, 0)
                             ),
                             set(
                               toTranslateY[index],
-                              cond(eq(invert[index], 1), 0, -200)
+                              cond(eq(invert[index], 1), 0, -400)
                             ),
                           ]),
                           cond(clockRunning(clock[index]), [
+                            set(animatedIndex, index),
                             set(
                               translateY[index],
                               runProgress(
@@ -217,6 +223,14 @@ export default function App() {
                                 index,
                                 1
                               )
+                            ),
+                            set(
+                              opacity,
+                              interpolate(translateY[index], {
+                                inputRange: [-400, 0],
+                                outputRange: [0, 1],
+                                extrapolate: Extrapolate.CLAMP,
+                              })
                             ),
                           ]),
                           set(
@@ -278,14 +292,18 @@ export default function App() {
                     },
                   ])}
                 >
-                  <Animated.View style={{}}>
+                  <Animated.View
+                    style={{
+                      opacity: cond(eq(animatedIndex, index), 1, opacity),
+                    }}
+                  >
                     <Card
                       style={[
                         {
                           transform: [
                             { translateX: translateX[index] },
                             { translateY: translateY[index] },
-                            { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
+                            // { translateY: (-CARD_DIMENSIONS.height / 2) * 1.5 },
                             { rotate: concat(rotate, 'deg') },
                             { scale: cond(longPressed[index], 0.8, 1) },
                           ],
@@ -319,9 +337,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#181818',
   },
+  scrollContainer: {
+    height: CARD_DIMENSIONS.width,
+  },
   scroll: {
     alignItems: 'flex-end',
-    paddingBottom: 20,
+    // paddingBottom: 20,
   },
   card: {},
 });
