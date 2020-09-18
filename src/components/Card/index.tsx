@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions, ViewProps } from 'react-native';
+import { StyleSheet, Dimensions, ViewProps } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { scale } from '../../utils';
 import Animated from 'react-native-reanimated';
@@ -33,6 +33,7 @@ const Card: React.FC<CardProps> = ({
         {
           transform: [{ translateX }, { translateY }, { rotate }, { scale }],
         },
+        { backgroundColor: 'rgba(75,0,130,1)' },
         style,
       ]}
       {...rest}
@@ -56,6 +57,7 @@ const styles = StyleSheet.create({
     width: CARD_DIMENSIONS.height,
     height: CARD_DIMENSIONS.width,
     borderRadius: 10,
+    marginLeft: 10,
   },
 });
 
